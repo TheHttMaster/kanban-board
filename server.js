@@ -10,6 +10,20 @@ const db = require("./db");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const sseClients = new Set();
+
+function broadcastTaskEvent(eventName, payload) {
+  const data = JSON.stringify(payload);
+  for (const client of sseClients) {
+    try {
+      client.res.write(`event: ${eventName}\n`);
+      client.res.write(`data: ${data}\n\n`);
+    } catch (err) {
+      sseClients.delete(client);
+      client.res.end();
+    }
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Config: 2 fixed accounts. Use Kevin and Geral as the official names.
@@ -47,6 +61,21 @@ Object.keys(RAW_USERS).forEach((name) => {
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
+
+app.get("/api/events", requireAuth, (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders?.();
+
+  const client = { res };
+  sseClients.add(client);
+  res.write(": connected\n\n");
+
+  req.on("close", () => {
+    sseClients.delete(client);
+  });
+});
 
 function requireAuth(req, res, next) {
   const token = req.cookies.token;
@@ -114,6 +143,7 @@ app.post("/api/tasks", requireAuth, asyncRoute(async (req, res) => {
     category: (category || "").trim(),
     createdBy: req.user,
   });
+  broadcastTaskEvent("task.created", { task });
   res.status(201).json(task);
 }));
 
@@ -125,12 +155,14 @@ app.put("/api/tasks/:id", requireAuth, asyncRoute(async (req, res) => {
     category: category !== undefined ? category.trim() : undefined,
   });
   if (!task) return res.status(404).json({ error: "Tarea no encontrada" });
+  broadcastTaskEvent("task.updated", { task });
   res.json(task);
 }));
 
 app.delete("/api/tasks/:id", requireAuth, asyncRoute(async (req, res) => {
   const ok = await db.deleteTask(req.params.id);
   if (!ok) return res.status(404).json({ error: "Tarea no encontrada" });
+  broadcastTaskEvent("task.deleted", { id: req.params.id });
   res.json({ ok: true });
 }));
 
@@ -138,6 +170,7 @@ app.delete("/api/tasks/:id", requireAuth, asyncRoute(async (req, res) => {
 app.post("/api/tasks/:id/take", requireAuth, asyncRoute(async (req, res) => {
   const task = await db.takeTask(req.params.id, req.user);
   if (!task) return res.status(404).json({ error: "Tarea no encontrada" });
+  broadcastTaskEvent("task.updated", { task });
   res.json(task);
 }));
 
@@ -148,6 +181,7 @@ app.post("/api/tasks/:id/reassign", requireAuth, asyncRoute(async (req, res) => 
   if (!USERS[normalizedUser]) return res.status(400).json({ error: "Usuario inválido" });
   const task = await db.reassignTask(req.params.id, normalizedUser);
   if (!task) return res.status(404).json({ error: "Tarea no encontrada" });
+  broadcastTaskEvent("task.updated", { task });
   res.json(task);
 }));
 
@@ -172,6 +206,7 @@ app.post("/api/tasks/:id/move", requireAuth, asyncRoute(async (req, res) => {
 
   const movedTask = await db.moveTask(req.params.id, status, normalizedAssignTo || req.user, req.user);
   if (!movedTask) return res.status(404).json({ error: "Tarea no encontrada" });
+  broadcastTaskEvent("task.updated", { task: movedTask });
   res.json(movedTask);
 }));
 

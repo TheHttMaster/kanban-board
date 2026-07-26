@@ -187,6 +187,7 @@
   let currentUser = null;
   let filter = "todos";
   let pendingAssignTaskId = null;
+  let eventSource = null;
 
   // ---------- API helpers ----------
   async function api(path, options) {
@@ -198,6 +199,51 @@
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || "Error de servidor");
     return data;
+  }
+
+  function applyTaskEvent(eventName, payload) {
+    const task = payload && payload.task ? payload.task : null;
+    if (eventName === "task.created") {
+      if (task && !tasks.some(t => t.id === task.id)) {
+        tasks.push(task);
+        render();
+      }
+      return;
+    }
+    if (eventName === "task.updated") {
+      if (task) {
+        replaceTask(task);
+      }
+      return;
+    }
+    if (eventName === "task.deleted") {
+      const id = payload && payload.id ? payload.id : null;
+      if (id) {
+        tasks = tasks.filter(t => t.id !== id);
+        render();
+      }
+    }
+  }
+
+  function connectTaskEvents() {
+    if (eventSource) {
+      eventSource.close();
+    }
+    eventSource = new EventSource("/api/events");
+    eventSource.addEventListener("task.created", (event) => {
+      applyTaskEvent("task.created", JSON.parse(event.data));
+    });
+    eventSource.addEventListener("task.updated", (event) => {
+      applyTaskEvent("task.updated", JSON.parse(event.data));
+    });
+    eventSource.addEventListener("task.deleted", (event) => {
+      applyTaskEvent("task.deleted", JSON.parse(event.data));
+    });
+    eventSource.onerror = () => {
+      if (eventSource.readyState === EventSource.CLOSED) {
+        setTimeout(connectTaskEvents, 1500);
+      }
+    };
   }
 
   async function init() {
@@ -219,6 +265,7 @@
       showToast("No se pudieron cargar las tareas.", "danger");
       tasks = [];
     }
+    connectTaskEvents();
     render();
   }
 
