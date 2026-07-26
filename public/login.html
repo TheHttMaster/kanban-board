@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ingresar · Pipeline</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: { base: '#0B0D12', panel: '#14171B', panel2: '#191C22', edge: '#262B34',
+          ana: '#4C8DFF', anadim: '#4C8DFF1A', carlos: '#33D07A', carlosdim: '#33D07A1A',
+          muted: '#8A90A3', faint: '#565D70' },
+        fontFamily: { mono: ['"JetBrains Mono"', 'monospace'], sans: ['Inter', 'sans-serif'] }
+      }
+    }
+  }
+</script>
+<style>
+  body { background: #0B0D12; background-image: radial-gradient(circle at 15% 0%, rgba(76,141,255,0.06), transparent 40%), radial-gradient(circle at 90% 100%, rgba(51,208,122,0.06), transparent 40%); }
+</style>
+</head>
+<body class="min-h-screen font-sans text-[#EDEEF2] flex items-center justify-center p-4">
+
+  <div class="w-full max-w-sm">
+    <div class="flex items-center gap-2.5 justify-center mb-6">
+      <div class="w-8 h-8 rounded-md bg-panel border border-edge flex items-center justify-center">
+        <span class="font-mono text-[13px] text-ana">&gt;_</span>
+      </div>
+      <span class="font-sans font-extrabold text-[15px] tracking-tight">pipeline<span class="text-faint">/board</span></span>
+    </div>
+
+    <div class="bg-panel border border-edge rounded-xl p-6 shadow-lg">
+      <p class="font-mono text-[10px] uppercase tracking-wide text-faint mb-1">Acceso</p>
+      <h1 class="font-sans font-bold text-[16px] mb-5">Ingresa a tu cuenta</h1>
+
+      <label class="block font-mono text-[10px] uppercase tracking-wide text-faint mb-1.5">Usuario</label>
+      <div class="grid grid-cols-2 gap-2 mb-4">
+        <button type="button" data-user="Ana" class="user-pick-btn border border-edge rounded-lg py-2 text-[13px] font-semibold text-faint hover:border-ana hover:text-ana transition-colors">Ana</button>
+        <button type="button" data-user="Carlos" class="user-pick-btn border border-edge rounded-lg py-2 text-[13px] font-semibold text-faint hover:border-carlos hover:text-carlos transition-colors">Carlos</button>
+      </div>
+
+      <label class="block font-mono text-[10px] uppercase tracking-wide text-faint mb-1.5">Contraseña</label>
+      <input id="passwordInput" type="password" placeholder="••••••••"
+        class="w-full mb-2 bg-panel2 border border-edge rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-ana">
+
+      <p id="errorMsg" class="text-[11.5px] text-red-400 mb-2 hidden"></p>
+
+      <button id="loginBtn" class="w-full mt-2 bg-[#EDEEF2] text-base font-semibold text-[13px] px-3 py-2.5 rounded-lg hover:bg-white transition-colors">
+        Entrar
+      </button>
+    </div>
+    <p class="text-center font-mono text-[10px] text-faint mt-4">tablero compartido · 2 devs</p>
+  </div>
+
+<script>
+  let selectedUser = null;
+  const userBtns = document.querySelectorAll(".user-pick-btn");
+  const passwordInput = document.getElementById("passwordInput");
+  const errorMsg = document.getElementById("errorMsg");
+  const loginBtn = document.getElementById("loginBtn");
+
+  userBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      selectedUser = btn.dataset.user;
+      userBtns.forEach(b => {
+        const active = b === btn;
+        const color = b.dataset.user === "Ana" ? "ana" : "carlos";
+        b.className = "user-pick-btn border rounded-lg py-2 text-[13px] font-semibold transition-colors " +
+          (active ? `border-${color} text-${color} bg-${color}dim` : "border-edge text-faint hover:border-faint hover:text-[#EDEEF2]");
+      });
+      errorMsg.classList.add("hidden");
+      passwordInput.focus();
+    });
+  });
+
+  function showError(msg) {
+    errorMsg.textContent = msg;
+    errorMsg.classList.remove("hidden");
+  }
+
+  async function doLogin() {
+    if (!selectedUser) { showError("Elige tu usuario."); return; }
+    const password = passwordInput.value;
+    loginBtn.disabled = true;
+    loginBtn.textContent = "Entrando...";
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: selectedUser, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showError(data.error || "No se pudo iniciar sesión");
+        loginBtn.disabled = false;
+        loginBtn.textContent = "Entrar";
+        return;
+      }
+      window.location.href = "/";
+    } catch (e) {
+      showError("Error de conexión con el servidor.");
+      loginBtn.disabled = false;
+      loginBtn.textContent = "Entrar";
+    }
+  }
+
+  loginBtn.addEventListener("click", doLogin);
+  passwordInput.addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pipeline · Kanban de equipo</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          base: '#0B0D12', panel: '#14171B', panel2: '#191C22', edge: '#262B34',
+          ana: '#4C8DFF', anadim: '#4C8DFF1A', carlos: '#33D07A', carlosdim: '#33D07A1A',
+          amber: '#F2A93B', amberdim: '#F2A93B1A', muted: '#8A90A3', faint: '#565D70',
+        },
+        fontFamily: { mono: ['"JetBrains Mono"', 'monospace'], sans: ['Inter', 'sans-serif'] },
+        boxShadow: { card: '0 1px 0 rgba(255,255,255,0.02) inset, 0 8px 20px -12px rgba(0,0,0,0.6)' }
+      }
+    }
+  }
+</script>
+<style>
+  body { background: #0B0D12; background-image: radial-gradient(circle at 15% 0%, rgba(76,141,255,0.05), transparent 40%), radial-gradient(circle at 90% 10%, rgba(51,208,122,0.05), transparent 40%); }
+  ::-webkit-scrollbar { height: 8px; width: 8px; }
+  ::-webkit-scrollbar-thumb { background: #262B34; border-radius: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  .col-scroll { scroll-snap-type: x mandatory; }
+  .col-snap { scroll-snap-align: start; }
+  @keyframes pop { 0% { transform: scale(0.96); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+  .pop-in { animation: pop 0.14s ease-out; }
+  @keyframes toastIn { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .toast-in { animation: toastIn 0.18s ease-out; }
+  .drag-ghost { opacity: 0.35; }
+  .col-drop-active { outline: 1px dashed #565D70; outline-offset: -6px; }
+  .task-card { transition: transform 0.12s ease, border-color 0.12s ease; }
+  .task-card:hover { transform: translateY(-1px); }
+</style>
+</head>
+<body class="min-h-screen font-sans text-[#EDEEF2] antialiased hidden" id="appBody">
+
+<!-- HEADER -->
+<header class="sticky top-0 z-30 border-b border-edge bg-base/90 backdrop-blur">
+  <div class="max-w-[1400px] mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center gap-3 justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-md bg-panel border border-edge flex items-center justify-center">
+        <span class="font-mono text-[13px] text-ana">&gt;_</span>
+      </div>
+      <div class="leading-tight">
+        <h1 class="font-sans font-extrabold text-[15px] tracking-tight">pipeline<span class="text-faint">/board</span></h1>
+        <p class="font-mono text-[10px] text-faint tracking-wide uppercase">tablero compartido · 2 devs</p>
+      </div>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2">
+      <div id="sessionBadge" class="flex items-center gap-2 bg-panel border border-edge rounded-lg pl-1 pr-2.5 py-1 font-mono text-[11px]">
+        <span id="sessionAvatar" class="w-5 h-5 rounded-full flex items-center justify-center font-bold text-[9px] text-base"></span>
+        <span id="sessionUserLabel" class="text-muted"></span>
+        <button id="logoutBtn" class="text-faint hover:text-red-400 ml-1" title="Cerrar sesión">⏻</button>
+      </div>
+
+      <select id="filterSelect" class="bg-panel border border-edge rounded-lg px-2.5 py-1.5 font-mono text-[11px] text-[#EDEEF2] focus:outline-none focus:border-faint">
+        <option value="todos">Ver: Todos</option>
+        <option value="Ana">Ver: Ana</option>
+        <option value="Carlos">Ver: Carlos</option>
+        <option value="libres">Ver: Sin asignar</option>
+      </select>
+
+      <button id="newTaskBtn" class="bg-[#EDEEF2] text-base font-semibold text-[12px] px-3 py-1.5 rounded-lg hover:bg-white transition-colors flex items-center gap-1.5">
+        <span class="text-[14px] leading-none">+</span> Nueva tarea
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- BOARD -->
+<main class="max-w-[1400px] mx-auto px-2 sm:px-6 py-6">
+  <div id="board" class="grid grid-flow-col auto-cols-[85vw] sm:auto-cols-fr sm:grid-cols-4 gap-4 overflow-x-auto col-scroll pb-4">
+    <!-- columns injected by JS -->
+  </div>
+</main>
+
+<!-- TASK MODAL -->
+<div id="taskModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+  <div class="pop-in w-full max-w-md bg-panel border border-edge rounded-xl shadow-card p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h2 id="modalTitle" class="font-sans font-bold text-[15px]">Nueva tarea</h2>
+      <button id="closeModalBtn" class="text-faint hover:text-[#EDEEF2] text-lg leading-none">&times;</button>
+    </div>
+    <input type="hidden" id="taskId">
+    <label class="block font-mono text-[10px] uppercase tracking-wide text-faint mb-1.5">Título</label>
+    <input id="taskTitleInput" type="text" maxlength="80" placeholder="Ej: Arreglar validación de correo"
+      class="w-full mb-3 bg-panel2 border border-edge rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-ana">
+    <label class="block font-mono text-[10px] uppercase tracking-wide text-faint mb-1.5">Descripción</label>
+    <textarea id="taskDescInput" rows="4" placeholder="Detalles de la tarea..."
+      class="w-full mb-3 bg-panel2 border border-edge rounded-lg px-3 py-2 text-[13px] resize-none focus:outline-none focus:border-ana"></textarea>
+    <label class="block font-mono text-[10px] uppercase tracking-wide text-faint mb-1.5">Categoría (opcional)</label>
+    <input id="taskCategoryInput" type="text" maxlength="24" placeholder="Ej: login, dashboard, usuarios..."
+      class="w-full mb-4 bg-panel2 border border-edge rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-ana">
+    <div class="flex justify-end gap-2">
+      <button id="cancelModalBtn" class="px-3 py-1.5 rounded-lg text-[12px] font-medium text-muted hover:text-[#EDEEF2]">Cancelar</button>
+      <button id="saveTaskBtn" class="px-3.5 py-1.5 rounded-lg text-[12px] font-semibold bg-ana text-base hover:brightness-110">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ASSIGN MODAL -->
+<div id="assignModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+  <div class="pop-in w-full max-w-xs bg-panel border border-edge rounded-xl shadow-card p-5 text-center">
+    <p class="font-mono text-[10px] uppercase tracking-wide text-faint mb-1">Asignar responsable</p>
+    <h2 class="font-sans font-bold text-[14px] mb-4">¿Quién va a tomar esta tarea?</h2>
+    <div class="flex gap-2 justify-center">
+      <button data-assign="Ana" class="assign-choice-btn flex-1 py-2 rounded-lg border border-ana text-ana font-semibold text-[13px] hover:bg-anadim">Ana</button>
+      <button data-assign="Carlos" class="assign-choice-btn flex-1 py-2 rounded-lg border border-carlos text-carlos font-semibold text-[13px] hover:bg-carlosdim">Carlos</button>
+    </div>
+    <button id="cancelAssignBtn" class="mt-3 text-[11px] text-faint hover:text-muted">Cancelar</button>
+  </div>
+</div>
+
+<!-- TOASTS -->
+<div id="toastContainer" class="fixed bottom-5 right-5 z-[60] flex flex-col gap-2 items-end"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  const COLUMNS = [
+    { id: "pendiente",   label: "Pendiente",   emoji: "📋", dotClass: "bg-faint" },
+    { id: "proceso",     label: "En Proceso",  emoji: "🔄", dotClass: "bg-ana animate-pulse" },
+    { id: "evaluacion",  label: "Evaluación",  emoji: "👀", dotClass: "bg-amber animate-pulse" },
+    { id: "completado",  label: "Completado",  emoji: "✅", dotClass: "bg-carlos" },
+  ];
+
+  const USER_COLORS = {
+    Ana:    { text: "text-ana",    border: "border-ana",    bg: "bg-anadim",    solid: "bg-ana"    },
+    Carlos: { text: "text-carlos", border: "border-carlos", bg: "bg-carlosdim", solid: "bg-carlos" },
+  };
+
+  let tasks = [];
+  let currentUser = null;
+  let filter = "todos";
+  let pendingAssignTaskId = null;
+
+  // ---------- API helpers ----------
+  async function api(path, options) {
+    const res = await fetch(path, Object.assign({ headers: { "Content-Type": "application/json" } }, options));
+    if (res.status === 401) {
+      window.location.href = "/login.html";
+      throw new Error("No autenticado");
+    }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Error de servidor");
+    return data;
+  }
+
+  async function init() {
+    try {
+      const me = await api("/api/me");
+      currentUser = me.user;
+    } catch (e) {
+      return; // redirected to login already
+    }
+    document.getElementById("appBody").classList.remove("hidden");
+    document.getElementById("sessionUserLabel").textContent = currentUser;
+    document.getElementById("sessionAvatar").className =
+      "w-5 h-5 rounded-full flex items-center justify-center font-bold text-[9px] text-base " + USER_COLORS[currentUser].solid;
+    document.getElementById("sessionAvatar").textContent = currentUser.charAt(0);
+
+    try {
+      tasks = await api("/api/tasks");
+    } catch (e) {
+      showToast("No se pudieron cargar las tareas.", "danger");
+      tasks = [];
+    }
+    render();
+  }
+
+  document.getElementById("logoutBtn").addEventListener("click", async () => {
+    await api("/api/logout", { method: "POST" }).catch(() => {});
+    window.location.href = "/login.html";
+  });
+
+  // ---------- Rendering ----------
+  function fmtDate(iso){
+    const d = new Date(iso);
+    return d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" }) + " · " +
+           d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+  }
+  function initials(name){ return name ? name.charAt(0).toUpperCase() : "?"; }
+
+  function avatarHTML(user, size){
+    size = size || "w-5 h-5 text-[9px]";
+    if (!user) return `<span class="${size} rounded-full border border-dashed border-faint text-faint flex items-center justify-center font-mono">·</span>`;
+    const c = USER_COLORS[user];
+    return `<span class="${size} rounded-full ${c.solid} text-base flex items-center justify-center font-mono font-bold">${initials(user)}</span>`;
+  }
+
+  function taskMatchesFilter(t){
+    if (filter === "todos") return true;
+    if (filter === "libres") return !t.assignedTo;
+    return t.assignedTo === filter;
+  }
+
+  function actionButtonsHTML(t){
+    const btnBase = "text-[11px] font-mono font-medium px-2 py-1 rounded-md transition-colors";
+    let html = "";
+    if (t.status === "pendiente") {
+      html += `<button class="take-btn ${btnBase} bg-ana text-base hover:brightness-110" data-id="${t.id}">tomar →</button>`;
+    }
+    if (t.status === "proceso") {
+      const other = t.assignedTo === "Ana" ? "Carlos" : "Ana";
+      html += `<button class="advance-btn ${btnBase} bg-panel2 border border-edge hover:border-amber hover:text-amber" data-id="${t.id}" data-to="evaluacion">a evaluación →</button>`;
+      html += `<button class="reassign-btn ${btnBase} bg-panel2 border border-edge hover:border-faint text-faint hover:text-[#EDEEF2]" data-id="${t.id}" data-to="${other}">tomar ${other}</button>`;
+    }
+    if (t.status === "evaluacion") {
+      html += `<button class="advance-btn ${btnBase} bg-carlos text-base hover:brightness-110" data-id="${t.id}" data-to="completado">aprobar ✓</button>`;
+      html += `<button class="advance-btn ${btnBase} bg-panel2 border border-edge hover:border-faint text-faint hover:text-[#EDEEF2]" data-id="${t.id}" data-to="proceso">devolver ↺</button>`;
+    }
+    if (t.status === "completado") {
+      html += `<button class="advance-btn ${btnBase} bg-panel2 border border-edge hover:border-faint text-faint hover:text-[#EDEEF2]" data-id="${t.id}" data-to="proceso">reabrir ↺</button>`;
+    }
+    return html;
+  }
+
+  function cardHTML(t){
+    const accent = t.assignedTo ? USER_COLORS[t.assignedTo].border : "border-edge";
+    return `
+    <div class="task-card pop-in group bg-panel border ${accent} border-l-[3px] rounded-lg p-3 mb-2.5 shadow-card cursor-grab active:cursor-grabbing"
+         draggable="true" data-id="${t.id}">
+      <div class="flex items-start justify-between gap-2 mb-1.5">
+        <h3 class="font-sans font-semibold text-[13px] leading-snug flex-1">${escapeHTML(t.title)}</h3>
+        <div class="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button class="edit-btn text-faint hover:text-[#EDEEF2] text-[12px]" data-id="${t.id}" title="Editar">✎</button>
+          <button class="delete-btn text-faint hover:text-red-400 text-[12px]" data-id="${t.id}" title="Eliminar">🗑</button>
+        </div>
+      </div>
+      ${t.description ? `<p class="text-[11.5px] text-muted leading-relaxed mb-2 line-clamp-3">${escapeHTML(t.description)}</p>` : ""}
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center gap-1.5">
+          ${avatarHTML(t.assignedTo)}
+          <span class="font-mono text-[10px] ${t.assignedTo ? USER_COLORS[t.assignedTo].text : 'text-faint'}">${t.assignedTo ? (t.status === 'evaluacion' ? 'hecho por ' + t.assignedTo : t.assignedTo) : 'sin asignar'}</span>
+        </div>
+        ${t.category ? `<span class="font-mono text-[9px] uppercase tracking-wide text-faint border border-edge rounded px-1.5 py-0.5">${escapeHTML(t.category)}</span>` : ""}
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="font-mono text-[9.5px] text-faint">${fmtDate(t.createdAt)}</span>
+        <div class="flex gap-1">${actionButtonsHTML(t)}</div>
+      </div>
+    </div>`;
+  }
+
+  function escapeHTML(str){
+    const d = document.createElement("div");
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  function render(){
+    const board = document.getElementById("board");
+    board.innerHTML = "";
+    COLUMNS.forEach(col => {
+      const colTasks = tasks.filter(t => t.status === col.id && taskMatchesFilter(t));
+      const colEl = document.createElement("div");
+      colEl.className = "col-snap flex flex-col bg-panel2/40 border border-edge rounded-xl min-h-[200px]";
+      colEl.dataset.status = col.id;
+      colEl.innerHTML = `
+        <div class="flex items-center justify-between px-3.5 py-3 border-b border-edge sticky top-[61px] bg-panel2/80 backdrop-blur rounded-t-xl">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full ${col.dotClass}"></span>
+            <span class="font-sans font-bold text-[12.5px]">${col.emoji} ${col.label}</span>
+          </div>
+          <span class="font-mono text-[10px] text-faint bg-panel border border-edge rounded-full px-2 py-0.5">${colTasks.length}</span>
+        </div>
+        <div class="task-list flex-1 px-2.5 pt-2.5 pb-3" data-status="${col.id}">
+          ${colTasks.length ? colTasks.map(cardHTML).join("") : `<div class="text-center py-8 px-2"><p class="font-mono text-[10px] text-faint">— sin tareas —</p></div>`}
+        </div>
+      `;
+      board.appendChild(colEl);
+    });
+    attachCardListeners();
+    attachDropListeners();
+  }
+
+  // ---------- Toasts ----------
+  function showToast(msg, tone){
+    tone = tone || "neutral";
+    const colors = {
+      neutral: "border-edge text-[#EDEEF2]",
+      ana: "border-ana text-ana",
+      carlos: "border-carlos text-carlos",
+      danger: "border-red-500/50 text-red-400",
+    };
+    const el = document.createElement("div");
+    el.className = `toast-in bg-panel border ${colors[tone]} rounded-lg px-3.5 py-2 text-[12px] font-medium shadow-card max-w-xs`;
+    el.textContent = msg;
+    document.getElementById("toastContainer").appendChild(el);
+    setTimeout(() => {
+      el.style.transition = "opacity 0.25s ease, transform 0.25s ease";
+      el.style.opacity = "0";
+      el.style.transform = "translateY(6px)";
+      setTimeout(() => el.remove(), 250);
+    }, 2600);
+  }
+
+  function findTask(id){ return tasks.find(t => t.id === id); }
+
+  // ---------- Actions (call API, then re-sync) ----------
+  async function takeTask(id){
+    try {
+      const updated = await api(`/api/tasks/${id}/take`, { method: "POST" });
+      replaceTask(updated);
+      showToast(`${currentUser} tomó "${updated.title}"`, currentUser === "Ana" ? "ana" : "carlos");
+    } catch (e) { showToast(e.message, "danger"); }
+  }
+
+  async function moveTask(id, newStatus, assignTo){
+    const t = findTask(id);
+    if (t && newStatus === "proceso" && !t.assignedTo && !assignTo) {
+      pendingAssignTaskId = id;
+      pendingAssignTaskId_targetStatus = newStatus;
+      openAssignModal();
+      return;
+    }
+    try {
+      const updated = await api(`/api/tasks/${id}/move`, {
+        method: "POST",
+        body: JSON.stringify({ status: newStatus, assignTo }),
+      });
+      replaceTask(updated);
+      const label = COLUMNS.find(c => c.id === newStatus).label;
+      showToast(`"${updated.title}" → ${label}`, "neutral");
+    } catch (e) { showToast(e.message, "danger"); }
+  }
+
+  async function reassignTask(id, newUser){
+    try {
+      const updated = await api(`/api/tasks/${id}/reassign`, {
+        method: "POST",
+        body: JSON.stringify({ user: newUser }),
+      });
+      replaceTask(updated);
+      showToast(`${newUser} ahora es responsable de "${updated.title}"`, newUser === "Ana" ? "ana" : "carlos");
+    } catch (e) { showToast(e.message, "danger"); }
+  }
+
+  async function deleteTask(id){
+    const t = findTask(id);
+    if (!t) return;
+    if (!confirm(`¿Eliminar la tarea "${t.title}"? Esta acción no se puede deshacer.`)) return;
+    try {
+      await api(`/api/tasks/${id}`, { method: "DELETE" });
+      tasks = tasks.filter(x => x.id !== id);
+      render();
+      showToast("Tarea eliminada", "danger");
+    } catch (e) { showToast(e.message, "danger"); }
+  }
+
+  async function upsertTask(id, title, description, category){
+    try {
+      if (id) {
+        const updated = await api(`/api/tasks/${id}`, {
+          method: "PUT",
+          body: JSON.stringify({ title, description, category }),
+        });
+        replaceTask(updated);
+        showToast("Tarea actualizada");
+      } else {
+        const created = await api("/api/tasks", {
+          method: "POST",
+          body: JSON.stringify({ title, description, category }),
+        });
+        tasks.push(created);
+        render();
+        showToast("Tarea creada");
+      }
+    } catch (e) { showToast(e.message, "danger"); }
+  }
+
+  function replaceTask(updated){
+    const idx = tasks.findIndex(t => t.id === updated.id);
+    if (idx !== -1) tasks[idx] = updated; else tasks.push(updated);
+    render();
+  }
+
+  // ---------- Modal wiring ----------
+  const taskModal = document.getElementById("taskModal");
+  const assignModal = document.getElementById("assignModal");
+  let pendingAssignTaskId_targetStatus = "proceso";
+
+  function openTaskModal(task){
+    document.getElementById("modalTitle").textContent = task ? "Editar tarea" : "Nueva tarea";
+    document.getElementById("taskId").value = task ? task.id : "";
+    document.getElementById("taskTitleInput").value = task ? task.title : "";
+    document.getElementById("taskDescInput").value = task ? task.description : "";
+    document.getElementById("taskCategoryInput").value = task ? (task.category || "") : "";
+    taskModal.classList.remove("hidden");
+    taskModal.classList.add("flex");
+    document.getElementById("taskTitleInput").focus();
+  }
+  function closeTaskModal(){ taskModal.classList.add("hidden"); taskModal.classList.remove("flex"); }
+  function openAssignModal(){ assignModal.classList.remove("hidden"); assignModal.classList.add("flex"); }
+  function closeAssignModal(){ assignModal.classList.add("hidden"); assignModal.classList.remove("flex"); pendingAssignTaskId = null; }
+
+  document.getElementById("newTaskBtn").addEventListener("click", () => openTaskModal(null));
+  document.getElementById("closeModalBtn").addEventListener("click", closeTaskModal);
+  document.getElementById("cancelModalBtn").addEventListener("click", closeTaskModal);
+  taskModal.addEventListener("click", (e) => { if (e.target === taskModal) closeTaskModal(); });
+
+  document.getElementById("saveTaskBtn").addEventListener("click", () => {
+    const id = document.getElementById("taskId").value || null;
+    const title = document.getElementById("taskTitleInput").value.trim();
+    const description = document.getElementById("taskDescInput").value.trim();
+    const category = document.getElementById("taskCategoryInput").value.trim();
+    if (!title) { showToast("El título es obligatorio", "danger"); return; }
+    upsertTask(id, title, description, category);
+    closeTaskModal();
+  });
+
+  document.getElementById("cancelAssignBtn").addEventListener("click", closeAssignModal);
+  assignModal.addEventListener("click", (e) => { if (e.target === assignModal) closeAssignModal(); });
+  document.querySelectorAll(".assign-choice-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const user = btn.dataset.assign;
+      if (pendingAssignTaskId) moveTask(pendingAssignTaskId, pendingAssignTaskId_targetStatus, user);
+      closeAssignModal();
+    });
+  });
+
+  function attachCardListeners(){
+    document.querySelectorAll(".task-card").forEach(card => {
+      card.addEventListener("dblclick", () => openTaskModal(findTask(card.dataset.id)));
+      card.addEventListener("dragstart", (e) => {
+        card.classList.add("drag-ghost");
+        e.dataTransfer.setData("text/plain", card.dataset.id);
+      });
+      card.addEventListener("dragend", () => card.classList.remove("drag-ghost"));
+    });
+    document.querySelectorAll(".edit-btn").forEach(b => b.addEventListener("click", (e) => { e.stopPropagation(); openTaskModal(findTask(b.dataset.id)); }));
+    document.querySelectorAll(".delete-btn").forEach(b => b.addEventListener("click", (e) => { e.stopPropagation(); deleteTask(b.dataset.id); }));
+    document.querySelectorAll(".take-btn").forEach(b => b.addEventListener("click", (e) => { e.stopPropagation(); takeTask(b.dataset.id); }));
+    document.querySelectorAll(".advance-btn").forEach(b => b.addEventListener("click", (e) => { e.stopPropagation(); moveTask(b.dataset.id, b.dataset.to); }));
+    document.querySelectorAll(".reassign-btn").forEach(b => b.addEventListener("click", (e) => { e.stopPropagation(); reassignTask(b.dataset.id, b.dataset.to); }));
+  }
+
+  function attachDropListeners(){
+    document.querySelectorAll(".task-list").forEach(list => {
+      list.addEventListener("dragover", (e) => { e.preventDefault(); list.parentElement.classList.add("col-drop-active"); });
+      list.addEventListener("dragleave", () => list.parentElement.classList.remove("col-drop-active"));
+      list.addEventListener("drop", (e) => {
+        e.preventDefault();
+        list.parentElement.classList.remove("col-drop-active");
+        const id = e.dataTransfer.getData("text/plain");
+        const newStatus = list.dataset.status;
+        const t = findTask(id);
+        if (t && t.status !== newStatus) moveTask(id, newStatus);
+      });
+    });
+  }
+
+  document.getElementById("filterSelect").addEventListener("change", (e) => { filter = e.target.value; render(); });
+
+  init();
+})();
+</script>
+</body>
+</html>
