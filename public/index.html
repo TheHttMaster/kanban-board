@@ -108,6 +108,48 @@
   </div>
 </div>
 
+<!-- VIEW TASK MODAL -->
+<div id="viewTaskModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+  <div class="pop-in w-full max-w-lg bg-panel border border-edge rounded-xl shadow-card p-5">
+    <div class="flex items-start justify-between mb-4 gap-3">
+      <div>
+        <p class="font-mono text-[10px] uppercase tracking-wide text-faint mb-1">Detalle de la tarea</p>
+        <h2 id="viewTaskTitle" class="font-sans font-bold text-[15px] leading-snug"></h2>
+      </div>
+      <button id="closeViewTaskBtn" class="text-faint hover:text-[#EDEEF2] text-lg leading-none">&times;</button>
+    </div>
+    <div class="space-y-3 text-[13px]">
+      <div>
+        <p class="font-mono text-[10px] uppercase tracking-wide text-faint mb-1">Descripción</p>
+        <div id="viewTaskDescription" class="max-h-60 overflow-y-auto whitespace-pre-wrap break-words rounded-lg bg-panel2 border border-edge px-3 py-2 text-[13px] leading-relaxed text-[#EDEEF2]"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <p class="font-mono text-[10px] uppercase tracking-wide text-faint mb-1">Categoría</p>
+          <p id="viewTaskCategory" class="rounded-lg bg-panel2 border border-edge px-3 py-2 text-[13px]"></p>
+        </div>
+        <div>
+          <p class="font-mono text-[10px] uppercase tracking-wide text-faint mb-1">Estado</p>
+          <p id="viewTaskStatus" class="rounded-lg bg-panel2 border border-edge px-3 py-2 text-[13px]"></p>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <p class="font-mono text-[10px] uppercase tracking-wide text-faint mb-1">Responsable</p>
+          <p id="viewTaskAssignedTo" class="rounded-lg bg-panel2 border border-edge px-3 py-2 text-[13px]"></p>
+        </div>
+        <div>
+          <p class="font-mono text-[10px] uppercase tracking-wide text-faint mb-1">Creada</p>
+          <p id="viewTaskCreatedAt" class="rounded-lg bg-panel2 border border-edge px-3 py-2 text-[13px]"></p>
+        </div>
+      </div>
+    </div>
+    <div class="flex justify-end mt-4">
+      <button id="closeViewTaskModalBtn" class="px-3 py-1.5 rounded-lg text-[12px] font-medium text-muted hover:text-[#EDEEF2]">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ASSIGN MODAL -->
 <div id="assignModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4">
   <div class="pop-in w-full max-w-xs bg-panel border border-edge rounded-xl shadow-card p-5 text-center">
@@ -235,6 +277,7 @@
       <div class="flex items-start justify-between gap-2 mb-1.5">
         <h3 class="font-sans font-semibold text-[13px] leading-snug flex-1">${escapeHTML(t.title)}</h3>
         <div class="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button class="view-btn text-faint hover:text-[#EDEEF2] text-[18px]" data-id="${t.id}" title="Ver detalles">👁</button>
           <button class="edit-btn text-faint hover:text-[#EDEEF2] text-[20px]" data-id="${t.id}" title="Editar">✎</button>
           <button class="delete-btn text-faint hover:text-red-400 text-[20px]" data-id="${t.id}" title="Eliminar">🗑</button>
         </div>
@@ -394,6 +437,7 @@
 
   // ---------- Modal wiring ----------
   const taskModal = document.getElementById("taskModal");
+  const viewTaskModal = document.getElementById("viewTaskModal");
   const assignModal = document.getElementById("assignModal");
   let pendingAssignTaskId_targetStatus = "proceso";
 
@@ -408,6 +452,19 @@
     document.getElementById("taskTitleInput").focus();
   }
   function closeTaskModal(){ taskModal.classList.add("hidden"); taskModal.classList.remove("flex"); }
+  function openViewTaskModal(task){
+    const viewTask = task || null;
+    if (!viewTask) return;
+    document.getElementById("viewTaskTitle").textContent = viewTask.title || "Sin título";
+    document.getElementById("viewTaskDescription").textContent = viewTask.description || "Sin descripción";
+    document.getElementById("viewTaskCategory").textContent = viewTask.category || "Sin categoría";
+    document.getElementById("viewTaskStatus").textContent = COLUMNS.find(c => c.id === viewTask.status)?.label || viewTask.status || "Sin estado";
+    document.getElementById("viewTaskAssignedTo").textContent = viewTask.assignedTo || "Sin asignar";
+    document.getElementById("viewTaskCreatedAt").textContent = fmtDate(viewTask.createdAt);
+    viewTaskModal.classList.remove("hidden");
+    viewTaskModal.classList.add("flex");
+  }
+  function closeViewTaskModal(){ viewTaskModal.classList.add("hidden"); viewTaskModal.classList.remove("flex"); }
   function openAssignModal(){ assignModal.classList.remove("hidden"); assignModal.classList.add("flex"); }
   function closeAssignModal(){ assignModal.classList.add("hidden"); assignModal.classList.remove("flex"); pendingAssignTaskId = null; }
 
@@ -415,6 +472,9 @@
   document.getElementById("closeModalBtn").addEventListener("click", closeTaskModal);
   document.getElementById("cancelModalBtn").addEventListener("click", closeTaskModal);
   taskModal.addEventListener("click", (e) => { if (e.target === taskModal) closeTaskModal(); });
+  document.getElementById("closeViewTaskBtn").addEventListener("click", closeViewTaskModal);
+  document.getElementById("closeViewTaskModalBtn").addEventListener("click", closeViewTaskModal);
+  viewTaskModal.addEventListener("click", (e) => { if (e.target === viewTaskModal) closeViewTaskModal(); });
 
   document.getElementById("saveTaskBtn").addEventListener("click", () => {
     const id = document.getElementById("taskId").value || null;
@@ -445,6 +505,7 @@
       });
       card.addEventListener("dragend", () => card.classList.remove("drag-ghost"));
     });
+    document.querySelectorAll(".view-btn").forEach(b => b.addEventListener("click", (e) => { e.stopPropagation(); openViewTaskModal(findTask(b.dataset.id)); }));
     document.querySelectorAll(".edit-btn").forEach(b => b.addEventListener("click", (e) => { e.stopPropagation(); openTaskModal(findTask(b.dataset.id)); }));
     document.querySelectorAll(".delete-btn").forEach(b => b.addEventListener("click", (e) => { e.stopPropagation(); deleteTask(b.dataset.id); }));
     document.querySelectorAll(".take-btn").forEach(b => b.addEventListener("click", (e) => { e.stopPropagation(); takeTask(b.dataset.id); }));
