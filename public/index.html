@@ -207,7 +207,7 @@
     const btnBase = "text-[11px] font-mono font-medium px-2 py-1 rounded-md transition-colors";
     let html = "";
     if (t.status === "pendiente") {
-      html += `<button class="take-btn ${btnBase} bg-ana text-base hover:brightness-110" data-id="${t.id}">tomar →</button>`;
+      html += `<button class="take-btn ${btnBase} bg-ana hover:brightness-110" data-id="${t.id}">tomar →</button>`;
     }
     if (t.status === "proceso") {
       const other = t.assignedTo === "Kevin" ? "Geral" : "Kevin";
@@ -215,7 +215,7 @@
       html += `<button class="reassign-btn ${btnBase} bg-panel2 border border-edge hover:border-faint text-faint hover:text-[#EDEEF2]" data-id="${t.id}" data-to="${other}">tomar ${other}</button>`;
     }
     if (t.status === "evaluacion") {
-      html += `<button class="advance-btn ${btnBase} bg-carlos text-base hover:brightness-110" data-id="${t.id}" data-to="completado">aprobar</button>`;
+      html += `<button class="advance-btn ${btnBase} bg-carlos hover:brightness-110" data-id="${t.id}" data-to="completado">aprobar</button>`;
       html += `<button class="advance-btn ${btnBase} bg-panel2 border border-edge hover:border-faint text-faint hover:text-[#EDEEF2]" data-id="${t.id}" data-to="proceso">devolver</button>`;
     }
     if (t.status === "completado") {
