@@ -174,11 +174,12 @@ async function listTasks() {
 }
 
 async function createTask({ title, description, category, createdBy }) {
+  const normalizedCreatedBy = normalizeUserName(createdBy);
   const { rows } = await pool.query(
     `INSERT INTO tasks (id, title, description, category, status, assigned_to, created_by, created_at)
      VALUES ($1, $2, $3, $4, 'pendiente', NULL, $5, now())
      RETURNING *`,
-    [nanoid(10), title, description || "", category || "", createdBy || null]
+    [nanoid(10), title, description || "", category || "", normalizedCreatedBy || null]
   );
   return mapRow(rows[0]);
 }
@@ -203,18 +204,20 @@ async function deleteTask(id) {
 
 // Tomar una tarea: la asigna a `user` y la mueve a "proceso".
 async function takeTask(id, user) {
+  const normalizedUser = normalizeUserName(user);
   const { rows } = await pool.query(
     `UPDATE tasks SET assigned_to = $1, status = 'proceso' WHERE id = $2 RETURNING *`,
-    [user, id]
+    [normalizedUser, id]
   );
   return rows[0] ? mapRow(rows[0]) : null;
 }
 
 // Reasignar el responsable sin cambiar la columna.
 async function reassignTask(id, user) {
+  const normalizedUser = normalizeUserName(user);
   const { rows } = await pool.query(
     `UPDATE tasks SET assigned_to = $1 WHERE id = $2 RETURNING *`,
-    [user, id]
+    [normalizedUser, id]
   );
   return rows[0] ? mapRow(rows[0]) : null;
 }
