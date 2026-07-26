@@ -242,11 +242,10 @@ async function moveTask(id, newStatus, assignTo, currentUser) {
     const task = rows[0];
 
     let nextAssignedTo = task.assigned_to;
-    if (newStatus === "proceso" && !nextAssignedTo) {
-      nextAssignedTo = normalizeUserName(assignTo || currentUser);
-    }
     if (newStatus === "pendiente") {
       nextAssignedTo = null;
+    } else if (!nextAssignedTo) {
+      nextAssignedTo = normalizeUserName(assignTo || currentUser);
     }
 
     const { rows: updatedRows } = await client.query(
