@@ -374,6 +374,18 @@
       openAssignModal();
       return;
     }
+
+    const previousTask = t ? { ...t } : null;
+    const optimisticAssignedTo = newStatus === "pendiente"
+      ? null
+      : (t && t.assignedTo ? t.assignedTo : (assignTo || currentUser || null));
+
+    if (t && t.status !== newStatus) {
+      const optimisticTask = { ...t, status: newStatus, assignedTo: optimisticAssignedTo };
+      tasks = tasks.map(task => task.id === id ? optimisticTask : task);
+      render();
+    }
+
     try {
       const updated = await api(`/api/tasks/${id}/move`, {
         method: "POST",
@@ -382,7 +394,13 @@
       replaceTask(updated);
       const label = COLUMNS.find(c => c.id === newStatus).label;
       showToast(`"${updated.title}" → ${label}`, "neutral");
-    } catch (e) { showToast(e.message, "danger"); }
+    } catch (e) {
+      if (previousTask) {
+        tasks = tasks.map(task => task.id === id ? previousTask : task);
+        render();
+      }
+      showToast(e.message, "danger");
+    }
   }
 
   async function reassignTask(id, newUser){
