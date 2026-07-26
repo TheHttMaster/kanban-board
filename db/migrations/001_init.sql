@@ -8,8 +8,8 @@ CREATE TABLE IF NOT EXISTS tasks (
   category     TEXT NOT NULL DEFAULT '',
   status       TEXT NOT NULL DEFAULT 'pendiente'
                CHECK (status IN ('pendiente', 'proceso', 'evaluacion', 'completado')),
-  assigned_to  TEXT CHECK (assigned_to IN ('Ana', 'Carlos') OR assigned_to IS NULL),
-  created_by   TEXT CHECK (created_by IN ('Ana', 'Carlos') OR created_by IS NULL),
+  assigned_to  TEXT CHECK (assigned_to IN ('Kevin', 'Geral', 'Ana', 'Carlos') OR assigned_to IS NULL),
+  created_by   TEXT CHECK (created_by IN ('Kevin', 'Geral', 'Ana', 'Carlos') OR created_by IS NULL),
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

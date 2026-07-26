@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pipeline · Kanban de equipo</title>
+<title>Gestión · Kanban de equipo</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -49,7 +49,7 @@
         <span class="font-mono text-[13px] text-ana">&gt;_</span>
       </div>
       <div class="leading-tight">
-        <h1 class="font-sans font-extrabold text-[15px] tracking-tight">pipeline<span class="text-faint">/board</span></h1>
+        <h1 class="font-sans font-extrabold text-[15px] tracking-tight">gestión<span class="text-faint">/kanban</span></h1>
         <p class="font-mono text-[10px] text-faint tracking-wide uppercase">tablero compartido · 2 devs</p>
       </div>
     </div>
@@ -63,8 +63,8 @@
 
       <select id="filterSelect" class="bg-panel border border-edge rounded-lg px-2.5 py-1.5 font-mono text-[11px] text-[#EDEEF2] focus:outline-none focus:border-faint">
         <option value="todos">Ver: Todos</option>
-        <option value="Ana">Ver: Ana</option>
-        <option value="Carlos">Ver: Carlos</option>
+        <option value="Kevin">Ver: Kevin</option>
+        <option value="Geral">Ver: Geral</option>
         <option value="libres">Ver: Sin asignar</option>
       </select>
 
@@ -112,8 +112,8 @@
     <p class="font-mono text-[10px] uppercase tracking-wide text-faint mb-1">Asignar responsable</p>
     <h2 class="font-sans font-bold text-[14px] mb-4">¿Quién va a tomar esta tarea?</h2>
     <div class="flex gap-2 justify-center">
-      <button data-assign="Ana" class="assign-choice-btn flex-1 py-2 rounded-lg border border-ana text-ana font-semibold text-[13px] hover:bg-anadim">Ana</button>
-      <button data-assign="Carlos" class="assign-choice-btn flex-1 py-2 rounded-lg border border-carlos text-carlos font-semibold text-[13px] hover:bg-carlosdim">Carlos</button>
+      <button data-assign="Kevin" class="assign-choice-btn flex-1 py-2 rounded-lg border border-ana text-ana font-semibold text-[13px] hover:bg-anadim">Kevin</button>
+      <button data-assign="Geral" class="assign-choice-btn flex-1 py-2 rounded-lg border border-carlos text-carlos font-semibold text-[13px] hover:bg-carlosdim">Geral</button>
     </div>
     <button id="cancelAssignBtn" class="mt-3 text-[11px] text-faint hover:text-muted">Cancelar</button>
   </div>
@@ -134,8 +134,8 @@
   ];
 
   const USER_COLORS = {
-    Ana:    { text: "text-ana",    border: "border-ana",    bg: "bg-anadim",    solid: "bg-ana"    },
-    Carlos: { text: "text-carlos", border: "border-carlos", bg: "bg-carlosdim", solid: "bg-carlos" },
+    Kevin: { text: "text-ana",    border: "border-ana",    bg: "bg-anadim",    solid: "bg-ana"    },
+    Geral: { text: "text-carlos", border: "border-carlos", bg: "bg-carlosdim", solid: "bg-carlos" },
   };
 
   let tasks = [];
@@ -210,7 +210,7 @@
       html += `<button class="take-btn ${btnBase} bg-ana text-base hover:brightness-110" data-id="${t.id}">tomar →</button>`;
     }
     if (t.status === "proceso") {
-      const other = t.assignedTo === "Ana" ? "Carlos" : "Ana";
+      const other = t.assignedTo === "Kevin" ? "Geral" : "Kevin";
       html += `<button class="advance-btn ${btnBase} bg-panel2 border border-edge hover:border-amber hover:text-amber" data-id="${t.id}" data-to="evaluacion">a evaluación →</button>`;
       html += `<button class="reassign-btn ${btnBase} bg-panel2 border border-edge hover:border-faint text-faint hover:text-[#EDEEF2]" data-id="${t.id}" data-to="${other}">tomar ${other}</button>`;
     }
@@ -311,7 +311,7 @@
     try {
       const updated = await api(`/api/tasks/${id}/take`, { method: "POST" });
       replaceTask(updated);
-      showToast(`${currentUser} tomó "${updated.title}"`, currentUser === "Ana" ? "ana" : "carlos");
+      showToast(`${currentUser} tomó "${updated.title}"`, currentUser === "Kevin" ? "ana" : "carlos");
     } catch (e) { showToast(e.message, "danger"); }
   }
 
@@ -341,7 +341,7 @@
         body: JSON.stringify({ user: newUser }),
       });
       replaceTask(updated);
-      showToast(`${newUser} ahora es responsable de "${updated.title}"`, newUser === "Ana" ? "ana" : "carlos");
+      showToast(`${newUser} ahora es responsable de "${updated.title}"`, newUser === "Kevin" ? "ana" : "carlos");
     } catch (e) { showToast(e.message, "danger"); }
   }
 

@@ -21,9 +21,15 @@ if (JWT_SECRET === "dev-secret-change-me") {
   console.warn("[warn] Usando JWT_SECRET por defecto. Define JWT_SECRET en tus variables de entorno de Railway.");
 }
 
+function normalizeUserName(username) {
+  if (username === "Ana") return "Kevin";
+  if (username === "Carlos") return "Geral";
+  return username;
+}
+
 const RAW_USERS = {
-  Ana: process.env.ANA_PASSWORD || "ana123",
-  Carlos: process.env.CARLOS_PASSWORD || "carlos123",
+  Kevin: process.env.ANA_PASSWORD || "ana123",
+  Geral: process.env.CARLOS_PASSWORD || "carlos123",
 };
 if (!process.env.ANA_PASSWORD || !process.env.CARLOS_PASSWORD) {
   console.warn("[warn] Usando contraseñas por defecto (ana123 / carlos123). Define ANA_PASSWORD y CARLOS_PASSWORD en producción.");
@@ -46,7 +52,7 @@ function requireAuth(req, res, next) {
   if (!token) return res.status(401).json({ error: "No autenticado" });
   try {
     const payload = jwt.verify(token, JWT_SECRET);
-    req.user = payload.user;
+    req.user = normalizeUserName(payload.user);
     next();
   } catch (e) {
     return res.status(401).json({ error: "Sesión inválida o expirada" });
@@ -71,13 +77,14 @@ const COOKIE_OPTS = {
 // ---------------------------------------------------------------------------
 app.post("/api/login", (req, res) => {
   const { username, password } = req.body || {};
-  const user = USERS[username];
+  const normalizedUsername = normalizeUserName(username);
+  const user = USERS[normalizedUsername];
   if (!user || !bcrypt.compareSync(password || "", user.passwordHash)) {
     return res.status(401).json({ error: "Usuario o contraseña incorrecta" });
   }
-  const token = jwt.sign({ user: username }, JWT_SECRET, { expiresIn: "30d" });
+  const token = jwt.sign({ user: normalizedUsername }, JWT_SECRET, { expiresIn: "30d" });
   res.cookie("token", token, COOKIE_OPTS);
-  res.json({ ok: true, user: username });
+  res.json({ ok: true, user: normalizedUsername });
 });
 
 app.post("/api/logout", (req, res) => {
@@ -136,8 +143,9 @@ app.post("/api/tasks/:id/take", requireAuth, asyncRoute(async (req, res) => {
 // Reassign to the other teammate
 app.post("/api/tasks/:id/reassign", requireAuth, asyncRoute(async (req, res) => {
   const { user } = req.body || {};
-  if (!USERS[user]) return res.status(400).json({ error: "Usuario inválido" });
-  const task = await db.reassignTask(req.params.id, user);
+  const normalizedUser = normalizeUserName(user);
+  if (!USERS[normalizedUser]) return res.status(400).json({ error: "Usuario inválido" });
+  const task = await db.reassignTask(req.params.id, normalizedUser);
   if (!task) return res.status(404).json({ error: "Tarea no encontrada" });
   res.json(task);
 }));
@@ -146,10 +154,11 @@ app.post("/api/tasks/:id/reassign", requireAuth, asyncRoute(async (req, res) => 
 const VALID_STATUSES = ["pendiente", "proceso", "evaluacion", "completado"];
 app.post("/api/tasks/:id/move", requireAuth, asyncRoute(async (req, res) => {
   const { status, assignTo } = req.body || {};
+  const normalizedAssignTo = assignTo ? normalizeUserName(assignTo) : undefined;
   if (!VALID_STATUSES.includes(status)) return res.status(400).json({ error: "Estado inválido" });
-  if (assignTo && !USERS[assignTo]) return res.status(400).json({ error: "Usuario inválido" });
+  if (normalizedAssignTo && !USERS[normalizedAssignTo]) return res.status(400).json({ error: "Usuario inválido" });
 
-  const task = await db.moveTask(req.params.id, status, assignTo, req.user);
+  const task = await db.moveTask(req.params.id, status, normalizedAssignTo, req.user);
   if (!task) return res.status(404).json({ error: "Tarea no encontrada" });
   res.json(task);
 }));

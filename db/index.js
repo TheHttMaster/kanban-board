@@ -30,6 +30,13 @@ pool.on("error", (err) => {
 // corrido todavía, registrándolos en schema_migrations. Idempotente: se
 // puede llamar en cada arranque del servidor sin problema.
 // ---------------------------------------------------------------------------
+function normalizeUserName(value) {
+  if (!value) return null;
+  if (value === "Ana" || value === "Kevin") return "Kevin";
+  if (value === "Carlos" || value === "Geral") return "Geral";
+  return value;
+}
+
 const MIGRATIONS_DIR = path.join(__dirname, "migrations");
 
 async function runMigrations() {
@@ -151,8 +158,8 @@ function mapRow(r) {
     description: r.description,
     category: r.category,
     status: r.status,
-    assignedTo: r.assigned_to,
-    createdBy: r.created_by,
+    assignedTo: normalizeUserName(r.assigned_to),
+    createdBy: normalizeUserName(r.created_by),
     createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at,
   };
 }
@@ -227,7 +234,7 @@ async function moveTask(id, newStatus, assignTo, currentUser) {
 
     let nextAssignedTo = task.assigned_to;
     if (newStatus === "proceso" && !nextAssignedTo) {
-      nextAssignedTo = assignTo || currentUser;
+      nextAssignedTo = normalizeUserName(assignTo || currentUser);
     }
     if (newStatus === "pendiente") {
       nextAssignedTo = null;

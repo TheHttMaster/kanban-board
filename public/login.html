@@ -39,8 +39,8 @@
 
       <label class="block font-mono text-[10px] uppercase tracking-wide text-faint mb-1.5">Usuario</label>
       <div class="grid grid-cols-2 gap-2 mb-4">
-        <button type="button" data-user="Ana" class="user-pick-btn border border-edge rounded-lg py-2 text-[13px] font-semibold text-faint hover:border-ana hover:text-ana transition-colors">Ana</button>
-        <button type="button" data-user="Carlos" class="user-pick-btn border border-edge rounded-lg py-2 text-[13px] font-semibold text-faint hover:border-carlos hover:text-carlos transition-colors">Carlos</button>
+        <button type="button" data-user="Kevin" class="user-pick-btn border border-edge rounded-lg py-2 text-[13px] font-semibold text-faint hover:border-ana hover:text-ana transition-colors">Kevin</button>
+        <button type="button" data-user="Geral" class="user-pick-btn border border-edge rounded-lg py-2 text-[13px] font-semibold text-faint hover:border-carlos hover:text-carlos transition-colors">Geral</button>
       </div>
 
       <label class="block font-mono text-[10px] uppercase tracking-wide text-faint mb-1.5">Contraseña</label>
@@ -68,7 +68,7 @@
       selectedUser = btn.dataset.user;
       userBtns.forEach(b => {
         const active = b === btn;
-        const color = b.dataset.user === "Ana" ? "ana" : "carlos";
+        const color = b.dataset.user === "Kevin" ? "ana" : "carlos";
         b.className = "user-pick-btn border rounded-lg py-2 text-[13px] font-semibold transition-colors " +
           (active ? `border-${color} text-${color} bg-${color}dim` : "border-edge text-faint hover:border-faint hover:text-[#EDEEF2]");
       });
