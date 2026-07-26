@@ -103,7 +103,7 @@
       class="w-full mb-4 bg-panel2 border border-edge rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-ana">
     <div class="flex justify-end gap-2">
       <button id="cancelModalBtn" class="px-3 py-1.5 rounded-lg text-[12px] font-medium text-muted hover:text-[#EDEEF2]">Cancelar</button>
-      <button id="saveTaskBtn" class="px-3.5 py-1.5 rounded-lg text-[12px] font-semibold bg-ana text-base hover:brightness-110">Guardar</button>
+      <button id="saveTaskBtn" class="px-3.5 py-1.5 rounded-lg text-[12px] font-semibold bg-ana hover:brightness-110">Guardar</button>
     </div>
   </div>
 </div>
@@ -213,7 +213,7 @@
     }
     if (t.status === "proceso") {
       const other = t.assignedTo === "Kevin" ? "Geral" : "Kevin";
-      html += `<button class="advance-btn ${btnBase} bg-panel2 border border-edge hover:border-amber hover:text-amber" data-id="${t.id}" data-to="evaluacion">a evaluación →</button>`;
+      html += `<button class="advance-btn ${btnBase} bg-panel2 border border-edge hover:border-amber hover:text-amber" data-id="${t.id}" data-to="evaluacion">a evaluación</button>`;
       html += `<button class="reassign-btn ${btnBase} bg-panel2 border border-edge hover:border-faint text-faint hover:text-[#EDEEF2]" data-id="${t.id}" data-to="${other}">tomar ${other}</button>`;
     }
     if (t.status === "evaluacion") {
