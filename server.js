@@ -12,8 +12,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ---------------------------------------------------------------------------
-// Config: 2 fixed accounts. Set real passwords via Railway env vars:
-//   ANA_PASSWORD, CARLOS_PASSWORD, JWT_SECRET
+// Config: 2 fixed accounts. Use Kevin and Geral as the official names.
+// Set real passwords via Railway env vars (KEVIN_PASSWORD / GERAL_PASSWORD)
+// or keep the legacy ANA_PASSWORD / CARLOS_PASSWORD aliases.
 // Falls back to defaults for local testing only — CHANGE THESE IN PRODUCTION.
 // ---------------------------------------------------------------------------
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
@@ -28,11 +29,11 @@ function normalizeUserName(username) {
 }
 
 const RAW_USERS = {
-  Kevin: process.env.ANA_PASSWORD || "ana123",
-  Geral: process.env.CARLOS_PASSWORD || "carlos123",
+  Kevin: process.env.KEVIN_PASSWORD || process.env.ANA_PASSWORD || "ana123",
+  Geral: process.env.GERAL_PASSWORD || process.env.CARLOS_PASSWORD || "carlos123",
 };
-if (!process.env.ANA_PASSWORD || !process.env.CARLOS_PASSWORD) {
-  console.warn("[warn] Usando contraseñas por defecto (ana123 / carlos123). Define ANA_PASSWORD y CARLOS_PASSWORD en producción.");
+if (!process.env.KEVIN_PASSWORD && !process.env.ANA_PASSWORD || !process.env.GERAL_PASSWORD && !process.env.CARLOS_PASSWORD) {
+  console.warn("[warn] Usando contraseñas por defecto (ana123 / carlos123). Define KEVIN_PASSWORD y GERAL_PASSWORD en producción.");
 }
 
 const USERS = {};

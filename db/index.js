@@ -32,8 +32,9 @@ pool.on("error", (err) => {
 // ---------------------------------------------------------------------------
 function normalizeUserName(value) {
   if (!value) return null;
-  if (value === "Ana" || value === "Kevin") return "Kevin";
-  if (value === "Carlos" || value === "Geral") return "Geral";
+  if (value === "Ana") return "Kevin";
+  if (value === "Carlos") return "Geral";
+  if (value === "Kevin" || value === "Geral") return value;
   return value;
 }
 
