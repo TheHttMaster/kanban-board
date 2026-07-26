@@ -159,9 +159,20 @@ app.post("/api/tasks/:id/move", requireAuth, asyncRoute(async (req, res) => {
   if (!VALID_STATUSES.includes(status)) return res.status(400).json({ error: "Estado inválido" });
   if (normalizedAssignTo && !USERS[normalizedAssignTo]) return res.status(400).json({ error: "Usuario inválido" });
 
-  const task = await db.moveTask(req.params.id, status, normalizedAssignTo, req.user);
+  const task = await db.getTask(req.params.id);
   if (!task) return res.status(404).json({ error: "Tarea no encontrada" });
-  res.json(task);
+
+  const requiresAssignment = ["proceso", "evaluacion", "completado"].includes(status);
+  const hasAssignment = Boolean(task.assigned_to || task.assignedTo);
+  const resolvedAssignTo = normalizedAssignTo || req.user;
+
+  if (requiresAssignment && !hasAssignment && !resolvedAssignTo) {
+    return res.status(400).json({ error: "Debes asignar la tarea antes de moverla a En Proceso, Evaluación o Completado." });
+  }
+
+  const movedTask = await db.moveTask(req.params.id, status, normalizedAssignTo || req.user, req.user);
+  if (!movedTask) return res.status(404).json({ error: "Tarea no encontrada" });
+  res.json(movedTask);
 }));
 
 app.get("/api/health", (req, res) => res.json({ ok: true }));

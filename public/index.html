@@ -124,6 +124,7 @@
 <!-- TOASTS -->
 <div id="toastContainer" class="fixed bottom-5 right-5 z-[60] flex flex-col gap-2 items-end"></div>
 
+<script src="/task-flow.js"></script>
 <script>
 (function(){
   "use strict";
@@ -319,7 +320,12 @@
 
   async function moveTask(id, newStatus, assignTo){
     const t = findTask(id);
-    if (t && newStatus === "proceso" && !t.assignedTo && !assignTo) {
+    const validation = TaskFlow.validateMove({ task: t, newStatus, assignTo, currentUser });
+    if (!validation.ok) {
+      showToast(validation.error, "danger");
+      return;
+    }
+    if (t && !t.assignedTo && !assignTo && TaskFlow.requiresAssignment(newStatus)) {
       pendingAssignTaskId = id;
       pendingAssignTaskId_targetStatus = newStatus;
       openAssignModal();

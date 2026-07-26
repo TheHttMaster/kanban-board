@@ -173,6 +173,11 @@ async function listTasks() {
   return rows.map(mapRow);
 }
 
+async function getTask(id) {
+  const { rows } = await pool.query("SELECT * FROM tasks WHERE id = $1", [id]);
+  return rows[0] ? mapRow(rows[0]) : null;
+}
+
 async function createTask({ title, description, category, createdBy }) {
   const normalizedCreatedBy = normalizeUserName(createdBy);
   const { rows } = await pool.query(
@@ -263,6 +268,7 @@ module.exports = {
   runMigrations,
   seedIfEmpty,
   listTasks,
+  getTask,
   createTask,
   updateTask,
   deleteTask,
