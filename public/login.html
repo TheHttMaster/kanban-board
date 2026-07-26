@@ -44,8 +44,11 @@
       </div>
 
       <label class="block font-mono text-[10px] uppercase tracking-wide text-faint mb-1.5">Contraseña</label>
-      <input id="passwordInput" type="password" placeholder="••••••••"
-        class="w-full mb-2 bg-panel2 border border-edge rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-ana">
+      <div class="relative mb-2">
+        <input id="passwordInput" type="password" placeholder="••••••••"
+          class="w-full bg-panel2 border border-edge rounded-lg px-3 py-2 pr-10 text-[13px] focus:outline-none focus:border-ana">
+        <button type="button" id="togglePasswordBtn" class="absolute inset-y-0 right-0 flex items-center px-3 text-faint hover:text-[#EDEEF2]" aria-label="Mostrar u ocultar contraseña" title="Mostrar u ocultar contraseña">👁</button>
+      </div>
 
       <p id="errorMsg" class="text-[11.5px] text-red-400 mb-2 hidden"></p>
 
@@ -60,6 +63,7 @@
   let selectedUser = null;
   const userBtns = document.querySelectorAll(".user-pick-btn");
   const passwordInput = document.getElementById("passwordInput");
+  const togglePasswordBtn = document.getElementById("togglePasswordBtn");
   const errorMsg = document.getElementById("errorMsg");
   const loginBtn = document.getElementById("loginBtn");
 
@@ -81,6 +85,14 @@
     errorMsg.textContent = msg;
     errorMsg.classList.remove("hidden");
   }
+
+  togglePasswordBtn.addEventListener("click", () => {
+    const isPassword = passwordInput.type === "password";
+    passwordInput.type = isPassword ? "text" : "password";
+    togglePasswordBtn.textContent = isPassword ? "🙈" : "👁";
+    togglePasswordBtn.setAttribute("aria-label", isPassword ? "Ocultar contraseña" : "Mostrar contraseña");
+    passwordInput.focus();
+  });
 
   async function doLogin() {
     if (!selectedUser) { showError("Elige tu usuario."); return; }
